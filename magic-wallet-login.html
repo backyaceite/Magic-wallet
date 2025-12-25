@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magic Wallet - Login</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 450px;
+      width: 100%;
+    }
+    
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    
+    input[type="email"] {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      margin-bottom: 15px;
+      transition: border-color 0.3s;
+    }
+    
+    input[type="email"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .user-info {
+      text-align: center;
+    }
+    
+    .wallet-icon {
+      font-size: 60px;
+      margin-bottom: 20px;
+    }
+    
+    .info-box {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px 0;
+      word-break: break-all;
+    }
+    
+    .info-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+    
+    .info-value {
+      font-size: 14px;
+      color: #333;
+      font-family: monospace;
+    }
+    
+    .logout-btn {
+      background: #ff4757;
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    }
+    
+    .logout-btn:hover {
+      box-shadow: 0 5px 20px rgba(255, 71, 87, 0.4);
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    .loading {
+      text-align: center;
+      color: #667eea;
+      margin-top: 10px;
+    }
+    
+    .error {
+      background: #ff4757;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    
+    .success {
+      background: #2ecc71;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Formulario de Login -->
+    <div id="login-form">
+      <h1>🪄 Magic Wallet</h1>
+      <p class="subtitle">Inicia sesión con tu email, sin contraseñas</p>
+      
+      <form id="emailForm">
+        <input 
+          type="email" 
+          id="email" 
+          placeholder="tu@email.com" 
+          required
+          autocomplete="email"
+        >
+        <button type="submit" id="loginBtn">Enviar Magic Link</button>
+      </form>
+      
+      <div id="message"></div>
+    </div>
+
+    <!-- Info del Usuario -->
+    <div id="user-info" class="user-info hidden">
+      <div class="wallet-icon">👛</div>
+      <h1>¡Conectado!</h1>
+      
+      <div class="info-box">
+        <div class="info-label">Email</div>
+        <div class="info-value" id="user-email"></div>
+      </div>
+      
+      <div class="info-box">
+        <div class="info-label">Wallet Address</div>
+        <div class="info-value" id="wallet-address"></div>
+      </div>
+      
+      <button class="logout-btn" onclick="logout()">Desconectar</button>
+    </div>
+  </div>
+
+  <!-- Script de Magic -->
+  <script src="https://auth.magic.link/sdk"></script>
+  
+  <script>
+    // API Key de Magic
+    const MAGIC_API_KEY = 'pk_live_5A17C8835D24C45C';
+    
+    // Inicializar Magic
+    const magic = new Magic(MAGIC_API_KEY);
+    
+    // Elementos del DOM
+    const loginForm = document.getElementById('login-form');
+    const userInfo = document.getElementById('user-info');
+    const emailForm = document.getElementById('emailForm');
+    const emailInput = document.getElementById('email');
+    const loginBtn = document.getElementById('loginBtn');
+    const messageDiv = document.getElementById('message');
+    
+    // Verificar si el usuario ya está logueado al cargar la página
+    checkUser();
+    
+    async function checkUser() {
+      try {
+        const isLoggedIn = await magic.user.isLoggedIn();
+        
+        if (isLoggedIn) {
+          await showUserInfo();
+        }
+      } catch (error) {
+        console.error('Error al verificar usuario:', error);
+      }
+    }
+    
+    // Manejar el envío del formulario
+    emailForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = emailInput.value.trim();
+      
+      if (!email) {
+        showMessage('Por favor ingresa un email válido', 'error');
+        return;
+      }
+      
+      // Deshabilitar botón mientras procesa
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Enviando...';
+      messageDiv.innerHTML = '<div class="loading">📧 Revisa tu correo y haz clic en el link...</div>';
+      
+      try {
+        // Enviar magic link
+        await magic.auth.loginWithMagicLink({ email });
+        
+        // Mostrar información del usuario
+        await showUserInfo();
+        
+      } catch (error) {
+        console.error('Error en login:', error);
+        showMessage('Error al iniciar sesión: ' + error.message, 'error');
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Enviar Magic Link';
+      }
+    });
+    
+    async function showUserInfo() {
+      try {
+        // Obtener información del usuario
+        const metadata = await magic.user.getMetadata();
+        
+        // Mostrar datos
+        document.getElementById('user-email').textContent = metadata.email;
+        document.getElementById('wallet-address').textContent = metadata.publicAddress;
+        
+        // Cambiar de vista
+        loginForm.classList.add('hidden');
+        userInfo.classList.remove('hidden');
+        
+      } catch (error) {
+        console.error('Error al obtener info del usuario:', error);
+        showMessage('Error al cargar información', 'error');
+      }
+    }
+    
+    async function logout() {
+      try {
+        await magic.user.logout();
+        
+        // Limpiar formulario
+        emailInput.value = '';
+        messageDiv.innerHTML = '';
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Enviar Magic Link';
+        
+        // Cambiar de vista
+        userInfo.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+        
+        showMessage('Sesión cerrada correctamente', 'success');
+        
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+        showMessage('Error al cerrar sesión', 'error');
+      }
+    }
+    
+    function showMessage(text, type) {
+      messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+      
+      if (type === 'success') {
+        setTimeout(() => {
+          messageDiv.innerHTML = '';
+        }, 3000);
+      }
+    }
+  </script>
+</body>
+</html>
